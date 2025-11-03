@@ -10,21 +10,21 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 
 def register_user(request):
+    if request.user.is_authenticated:
+        return redirect('users')
     if request.method == 'POST':
         email = request.POST.get('email')
         phone_number = request.POST.get('phone_number')
         password = request.POST.get('password')
 
-        print("POST Data:", request.POST)
-        print(email)
-        print("after Data:", request.POST)
-
-
         if not User.objects.filter(email=email).exists():
             user = User.objects.create_user(email=email, phone_number=phone_number, password=password)
             return redirect('login')
         else:
-            return render(request,  'accounts/register.html',             {'error': 'Email already exists!'})
+            context = {
+                'error': 'Email already exists!'
+            }
+            return render(request,  'accounts/register.html', context)
 
     return render(request, 'accounts/register.html')
 
@@ -37,7 +37,7 @@ def login_user(request):
         user = authenticate(request, email=email, password=password)
         if user is not None:
             login(request, user)
-            return redirect('home')
+            return redirect('users')
         else:
             return render(request, 'accounts/login.html', {'error': 'Invalid credentials'})
 
@@ -45,38 +45,8 @@ def login_user(request):
 
 
 @login_required
-def home(request):
-    # ✅ Create User
-    if request.method == 'POST' and 'create_user' in request.POST:
-        full_name = request.POST.get('full_name')
-        email = request.POST.get('email')
-        phone_number = request.POST.get('phone_number')
-        password = request.POST.get('password')
-
-        if not email:  # safety check
-            return redirect('home')
-
-        if not User.objects.filter(email=email).exists():
-            user = User.objects.create_user(
-                email=email,
-                phone_number=phone_number,
-                password=password
-            )
-            user.full_name = full_name
-            user.date_joined = timezone.now()
-            user.save()
-
-        return redirect('home')
-
-
-    # ✅ Delete User
-    elif request.method == 'POST' and 'delete_user' in request.POST:
-        user_id = request.POST.get('user_id')
-        user = get_object_or_404(User, id=user_id)
-        user.delete()
-        return redirect('home')
-
-    # ====== Search Users ======
+def users(request):
+    
     query = request.GET.get('q', '')  # search query
     if query:
         users = User.objects.filter(full_name__icontains=query) | \
@@ -85,15 +55,10 @@ def home(request):
     else:
         users = User.objects.all()
 
-    return render(request, 'accounts/home.html', {
+    return render(request, 'accounts/users.html', {
         'users': users,
         'query': query
     })
-
-
-def users(request):
-    
-    return render(request, accounts/users.html)
 
 def edit_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
